@@ -4,7 +4,7 @@
 
 > **EN:** Personal real-estate tracker for Czechia. Paste a listing URL from Sreality, Bezrealitky, iDNES Reality or Realingo, and the app saves its details and photos and analyses the surroundings: distance to water, flood zones, train and bus stops, supermarkets, travel time to Prague and Pilsen by car, train and bus, plus an automatic 0–100 score with adjustable weights. Plain PHP and JavaScript, no database or build step, so it runs on cheap shared hosting. MIT licensed.
 
-Vložíte odkaz na inzerát a aplikace načte údaje a fotky a vyhodnotí okolí nemovitosti. Je určená hlavně pro hledání domů, chat a chalup.
+Vložíte odkaz na inzerát a aplikace načte údaje a fotky a vyhodnotí okolí nemovitosti. Je určená hlavně pro hledání domů, chat a chalup. 
 
 ## Co umí
 
