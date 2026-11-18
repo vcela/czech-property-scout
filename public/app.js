@@ -11,6 +11,7 @@ const ICON = {
   pin: '<svg viewBox="0 0 24 24"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>',
   refresh: '<svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></svg>',
   trash: '<svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15"/></svg>',
+  signal: '<svg viewBox="0 0 24 24"><path d="M4 20v-3M9 20v-7M14 20v-11M19 20V4"/></svg>',
   cart: '<svg viewBox="0 0 24 24"><path d="M3 4h2l2.4 10.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.8L20 7H6"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></svg>',
   river: '<svg viewBox="0 0 24 24"><path d="M3 6c3 0 3 3 6 3s3-3 6-3 3 3 6 3M3 14c3 0 3 3 6 3s3-3 6-3 3 3 6 3"/></svg>',
 };
@@ -22,6 +23,7 @@ const fmtDist = (m) => (m == null ? '–' : m < 1000 ? `${Math.round(m / 10) * 1
 const fmtPrice = (p) => (p ? `${(p / 1e6).toFixed(p < 1e7 ? 2 : 1).replace('.', ',')} mil. Kč` : 'cena na dotaz');
 const fmtPriceShort = (p) => (p ? `${(p / 1e6).toFixed(1).replace('.', ',')} M` : '?');
 
+const bestSignal = (g) => (g.signal ? Math.max(...Object.values(g.signal).map((o) => o['4g'] || 0)) : null);
 const pubMin = (g, k) => Math.min(g.transit?.[k]?.train?.total ?? Infinity, g.transit?.[k]?.bus?.total ?? Infinity);
 const fmtMin = (m) => (m == null || m === Infinity ? '–' : m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')} min`);
 
@@ -82,6 +84,8 @@ const VUV_WMS = 'https://ags.vuv.cz/arcgis/services/isvs_voda/isvs_voda/MapServe
 const overlays = {
   'Voda – řeky, potoky, rybníky (zvýrazněno)': waterLayer,
   'Záplavová území Q5–Q500': L.tileLayer.wms(VUV_WMS, { layers: '12,13,14,15,11', format: 'image/png', transparent: true, opacity: 0.55, minZoom: 12, attribution: 'VÚV T.G.M.' }),
+  ...Object.fromEntries(['4g', '5g'].flatMap((t) => [['01', 'T-Mobile'], ['02', 'O2'], ['03', 'Vodafone']].map(([c, n]) =>
+    [`Signál ${n} ${t.toUpperCase()} (ČTÚ)`, L.tileLayer.wms('https://vportal.ctu.gov.cz/geo/mc10/wms', { layers: `mc10:cp_${c}_${t}_t`, format: 'image/png', transparent: true, opacity: 0.55, attribution: 'ČTÚ – simulace pokrytí' })]))),
   'Železnice a stanice': L.tileLayer('https://{s}.tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png', { maxZoom: 19, subdomains: 'abc', attribution: 'OpenRailwayMap' }),
 };
 const lyr = state.layers2 || { base: 'Tlumená (voda vynikne)', on: ['Voda – řeky, potoky, rybníky (zvýrazněno)', 'Záplavová území Q5–Q500'] };
@@ -146,9 +150,13 @@ async function work() {
   const l = listings.find((x) => x.lat && (x.geo?.status === 'pending' || (x.geo?.v || 1) < Geo.GEO_VERSION));
   if (!l) return;
   working = true;
-  if (l.geo?.status !== 'pending') { l.geo = { ...l.geo, status: 'pending' }; render(); }
+  const onlySignal = (l.geo?.v || 1) === 2 && l.geo.status !== 'pending';
+  if (!onlySignal && l.geo?.status !== 'pending') { l.geo = { ...l.geo, status: 'pending' }; render(); }
   let geo;
-  try { geo = await Geo.analyze(l.lat, l.lng, l.nearestHint); }
+  if ((l.geo?.v || 1) === 2 && l.geo.status !== 'pending') { // starší analýza: doplnit jen signál, zbytek platí
+    try { geo = { ...l.geo, signal: await Geo.signal(l.lat, l.lng), v: Geo.GEO_VERSION }; }
+    catch (e) { geo = { ...l.geo, v: Geo.GEO_VERSION, errors: [...(l.geo.errors || []), 'Signál (ČTÚ): ' + e.message] }; }
+  } else try { geo = await Geo.analyze(l.lat, l.lng, l.nearestHint); }
   catch (e) { geo = { status: 'error', v: Geo.GEO_VERSION, errors: [e.message] }; }
   try { upsert(await call('update', { id: l.id, patch: { geo } })); }
   catch (e) { toast('Uložení analýzy selhalo: ' + esc(e.message), true); working = false; return; }
@@ -225,7 +233,7 @@ function openWeights() {
 $('#weightsBtn').onclick = openWeights;
 
 // ---------- filtry ----------
-const F = ['q', 'price', 'land', 'water', 'river', 'train', 'bus', 'praha', 'pub', 'shop', 'score', 'rating'];
+const F = ['q', 'price', 'land', 'water', 'river', 'train', 'bus', 'praha', 'pub', 'shop', 'sig', 'score', 'rating'];
 const C = ['noflood', 'ownLand', 'garage', 'ownWater', 'electricity', 'hideRejected'];
 function initFilters() {
   $('#f_type').innerHTML = TYPES.map((t) => `<button type="button" class="chip" data-t="${t}">${t}</button>`).join('');
@@ -262,6 +270,7 @@ function passes(l) {
   if (f.praha && !(g.drive?.praha?.min <= +f.praha)) return false;
   if (f.pub && !(pubMin(g, 'praha') <= +f.pub)) return false;
   if (f.shop && !(g.shops?.[0]?.dist <= +f.shop)) return false;
+  if (f.sig && !(bestSignal(g) >= +f.sig)) return false;
   if (f.rating && !(l.rating >= +f.rating)) return false;
   if (f.score && !(sc(l).total >= +f.score)) return false;
   if (f.noflood && g.flood?.inside?.length) return false;
@@ -294,6 +303,7 @@ function metricChips(l) {
   if (g.water?.nearest) out.push(`<span class="m water" title="${esc(g.water.nearest.kind + ' ' + (g.water.nearest.name || ''))}">${ICON.water} ${fmtDist(g.water.nearest.dist)}</span>`);
   if (g.train) out.push(`<span class="m train" title="${esc(g.train.name)}">${ICON.train} ${fmtDist(g.train.dist)}</span>`);
   if (g.bus) out.push(`<span class="m bus" title="${esc(g.bus.name)}">${ICON.bus} ${fmtDist(g.bus.dist)}</span>`);
+  if (g.signal) { const b = bestSignal(g); out.push(`<span class="m ${b >= 3 ? 'sig' : 'nosig'}" title="Nejlepší 4G signál z operátorů (ČTÚ, venku)">${ICON.signal} ${b ? score.SIGNAL[b] : 'bez signálu'}</span>`); }
   if (g.shops?.[0]) out.push(`<span class="m shop" title="${esc(g.shops[0].name)}">${ICON.cart} ${fmtDist(g.shops[0].dist)}</span>`);
   if (g.drive?.praha) out.push(`<span class="m car" title="Do centra Prahy: autem / veřejnou dopravou">Praha ${ICON.car} ${g.drive.praha.min}${pubMin(g, 'praha') < Infinity ? ` · ${ICON.train} ${pubMin(g, 'praha')}` : ''} min</span>`);
   if (g.status === 'pending') out.push('<span class="m pending"><span class="spin"></span></span>');
@@ -439,6 +449,13 @@ function tripsHtml(g, pending) {
     ${row('car', ICON.car, 'Autem')}${row('train', ICON.train, 'Vlakem')}${row('bus', ICON.bus, 'Autobusem')}</tbody></table>
     <div class="hint">Veřejná doprava = nejrychlejší spojení ve všední den kolem 7:00 (jízdní řády Transitous), vč. cesty na zastávku. Auto bez kolon.</div>`;
 }
+function signalHtml(g, pending) {
+  if (!g.signal) return `<div class="hint">${pending ? '<span class="spin"></span> zjišťuji…' : 'Nezjištěno'}</div>`;
+  const cell = (v) => `<td class="sq sq${v}">${v ? score.SIGNAL[v] : '–'}</td>`;
+  return `<table class="trips sigtab"><thead><tr><th></th><th>4G (LTE)</th><th>5G</th></tr></thead><tbody>
+    ${Object.entries(Geo.OPERATORS).map(([k, [, n]]) => `<tr><th>${n}</th>${cell(g.signal[k]?.['4g'] || 0)}${cell(g.signal[k]?.['5g'] || 0)}</tr>`).join('')}</tbody></table>
+    <div class="hint">Výpočet ČTÚ z parametrů vysílačů, pro venkovní prostředí; uvnitř domu bývá slabší. Na mapě: vrstvy „Signál …“.</div>`;
+}
 function tile(cls, icon, k, v, s) { return `<div class="tile ${cls}"><div class="k">${icon || ''} ${k}</div><div class="v">${v}</div>${s ? `<div class="s" title="${esc(s)}">${esc(s)}</div>` : ''}</div>`; }
 const FEATS = [['ownLand', 'Vlastní pozemek'], ['garage', 'Garáž'], ['parking', 'Parkování'], ['water', 'Voda'], ['ownWater', 'Vlastní zdroj vody'], ['electricity', 'Elektřina'], ['sewer', 'Odpad'], ['gas', 'Plyn'], ['heating', 'Vytápění'], ['cellar', 'Sklep']];
 function featHtml(l) {
@@ -498,6 +515,8 @@ function renderDetail() {
       </div>
       <h4>Cesta do Prahy a Plzně</h4>
       ${tripsHtml(g, pending)}
+      <h4>Signál mobilu <span class="hint" style="text-transform:none;letter-spacing:0">(ČTÚ – simulace venku)</span></h4>
+      ${signalHtml(g, pending)}
       <h4>Nákupy</h4>
       ${g.shops?.length ? `<div class="shops">${g.shops.map((s) => `<div class="shop">${ICON.cart}<b>${esc(s.name)}</b><span>${fmtDist(s.dist)}${s.carMin ? ` · ${s.carMin} min autem` : ''}</span></div>`).join('')}</div>` : `<div class="hint">${pending ? '<span class="spin"></span> hledám…' : 'Supermarket do 12 km nenalezen.'}</div>`}
       <div class="links">

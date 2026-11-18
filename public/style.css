@@ -237,3 +237,8 @@ body:not(.owner) .rate button { cursor: default; }
 .wact button:not(.link) { padding: 8px 16px; border-radius: 10px; border: 1px solid var(--line); background: #fff; cursor: pointer; }
 .wact .btn-primary { border: 0 !important; background: var(--brand) !important; color: #fff; }
 .login-switch { display: block; margin: -6px 20px 10px auto; }
+
+/* --- signál --- */
+.m.sig { color: #1864ab; background: #e7f5ff; } .m.nosig { color: #fff; background: #c92a2a; }
+.sigtab td.sq { font-weight: 650; }
+.sq0 { color: var(--flood); } .sq1, .sq2 { color: #e67700; } .sq3 { color: #1c7ed6; } .sq4, .sq5 { color: #0b4f71; }

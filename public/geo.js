@@ -7,7 +7,7 @@ const OVERPASS = [
   'https://overpass-api.de/api/interpreter',
   'https://overpass.private.coffee/api/interpreter',
 ];
-const GEO_VERSION = 2; // zvýšit při přidání nových údajů → staré inzeráty se samy přepočítají
+const GEO_VERSION = 3; // zvýšit při přidání nových údajů → staré inzeráty se samy přepočítají
 const TARGETS = { praha: [50.0833, 14.4213], plzen: [49.7475, 13.3776] }; // Můstek, nám. Republiky
 
 const get = async (url, opt = {}, ms = 30000) => {
@@ -247,6 +247,26 @@ async function flood(lat, lng) {
 }
 
 // --- OSRM: dojezd autem (bez dopravní situace) ---
+// --- ČTÚ: simulace pokrytí mobilním signálem (venku), třída 0 = nic … 5 = výborný ---
+const CTU_WMS = 'https://vportal.ctu.gov.cz/geo/mc10/wms';
+const OPERATORS = { tm: ['01', 'T-Mobile'], o2: ['02', 'O2'], vf: ['03', 'Vodafone'] };
+async function signalAt(lat, lng, op, tech) {
+  const R = 6378137, x = (lng * Math.PI / 180) * R, y = Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360)) * R, d = 150;
+  const layer = `mc10:cp_${OPERATORS[op][0]}_${tech}_t`;
+  const qs = new URLSearchParams({ service: 'WMS', version: '1.1.1', request: 'GetFeatureInfo', layers: layer, query_layers: layer, styles: '',
+    srs: 'EPSG:3857', bbox: [x - d, y - d, x + d, y + d].join(','), width: '101', height: '101', x: '50', y: '50', info_format: 'application/json' });
+  const j = await get(`${CTU_WMS}?${qs}`, {}, 20000);
+  return Math.max(0, Math.round(j.features?.[0]?.properties?.GRAY_INDEX ?? 0));
+}
+async function signal(lat, lng) {
+  const out = {};
+  for (const op of Object.keys(OPERATORS)) {
+    const [g4, g5] = await Promise.all([signalAt(lat, lng, op, '4g'), signalAt(lat, lng, op, '5g')]);
+    out[op] = { '4g': g4, '5g': g5 };
+  }
+  return out;
+}
+
 async function drive(lat, lng) {
   const pts = [[lat, lng], ...Object.values(TARGETS)].map(([a, b]) => `${b},${a}`).join(';');
   const j = await get(`https://router.project-osrm.org/table/v1/driving/${pts}?sources=0&annotations=duration,distance`);
@@ -267,7 +287,7 @@ const nearest = (arr) => arr.reduce((a, b) => (!a || b.dist < a.dist ? b : a), n
 async function analyze(lat, lng, hint = {}) {
   const errors = [];
   // rychlé dotazy napřed, pomalé OSM až potom – sdílený hosting nemusí zvládat mnoho souběžných proxy požadavků
-  const [fl, dr, pid] = await Promise.allSettled([flood(lat, lng), drive(lat, lng), pidNearby(lat, lng)]);
+  const [fl, dr, pid, sig] = await Promise.allSettled([flood(lat, lng), drive(lat, lng), pidNearby(lat, lng), signal(lat, lng)]);
   const [osm] = await Promise.allSettled([overpass(lat, lng)]);
   const geo = { v: GEO_VERSION, updatedAt: new Date().toISOString(), errors };
 
@@ -314,6 +334,7 @@ async function analyze(lat, lng, hint = {}) {
   for (const t of Object.values(geo.transit || {})) if (t.error) { errors.push('Jízdní řády: ' + t.error); delete t.error; }
 
   if (fl.status === 'fulfilled') geo.flood = fl.value; else errors.push('Záplavová území: ' + fl.reason.message);
+  if (sig.status === 'fulfilled') geo.signal = sig.value; else errors.push('Signál (ČTÚ): ' + sig.reason.message);
   if (dr.status === 'fulfilled') geo.drive = dr.value; else errors.push('Trasy autem: ' + dr.reason.message);
   geo.air = Object.fromEntries(Object.entries(TARGETS).map(([k, t]) => [k, Math.round(haversineKm([lat, lng], t))]));
   geo.status = errors.length ? 'partial' : 'ok';
@@ -321,6 +342,6 @@ async function analyze(lat, lng, hint = {}) {
 }
 const strip = (w) => (w ? { kind: w.kind, name: w.name, dist: w.dist, at: w.at } : null);
 
-const api = { GEO_VERSION, analyze, geocode, nearestOnLine, projector, haversineKm, analyzeOsm, TARGETS };
+const api = { GEO_VERSION, analyze, signal, OPERATORS, geocode, nearestOnLine, projector, haversineKm, analyzeOsm, TARGETS };
 if (typeof module !== 'undefined') module.exports = api; else root.Geo = api;
 })(this);

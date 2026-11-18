@@ -19,6 +19,7 @@ Vložíte odkaz na inzerát a aplikace načte údaje a fotky a vyhodnotí okolí
   - nejbližší vlak a autobus i s čísly linek,
   - cesta do centra Prahy a Plzně autem, vlakem a autobusem podle skutečných jízdních řádů,
   - nejbližší supermarkety.
+- **Signál mobilu** T-Mobile, O2 a Vodafone (4G a 5G) v místě nemovitosti a jako vrstvy v mapě (simulace pokrytí ČTÚ).
 - **Mapa „Kde je dobré spojení“** ukazuje oblasti, odkud se veřejnou dopravou rychle dostanete do Prahy, do Plzně, nebo do obou měst.
 - **Automatické hodnocení 0–100** s rozpisem, proč nemovitost dostala tolik bodů. Váhy kritérií nastavíte šoupátky.
 - **Vlastní hodnocení** hvězdičkami, stav (zajímavý / na prohlídku / zamítnutý), poznámky, filtry a řazení.
@@ -87,6 +88,7 @@ Aplikace volá veřejné služby. Při používání dodržujte jejich podmínky
 | Záplavová území, vodní útvary | [VÚV T. G. Masaryka](https://www.vuv.cz) | otevřená data VÚV |
 | Zastávky a linky PID | [PID – otevřená data](https://pid.cz/o-systemu/opendata/) | dle podmínek PID |
 | Cesta vlakem/autobusem, mapa spojení | [Transitous](https://transitous.org) (komunitní, MOTIS) | [pravidla používání](https://transitous.org/doc/) |
+| Pokrytí mobilním signálem | [ČTÚ – Vizualizační portál](https://vportal.ctu.gov.cz) | veřejná data ČTÚ (simulace, venkovní prostředí) |
 | Cesta autem | [OSRM](https://project-osrm.org) demo server | jen pro nenáročné použití |
 | Podkladové mapy | OSM, OpenTopoMap, Esri, OpenRailwayMap | dle poskytovatelů |
 

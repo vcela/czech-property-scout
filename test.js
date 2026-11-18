@@ -31,7 +31,8 @@ const score = require('./public/score');
 const ideal = { area: 150, landArea: 1600, features: { ownLand: true, electricity: 'ano', water: 'vodovod', garage: true },
   geo: { water: { nearest: { kind: 'řeka', dist: 150 }, river: { name: 'Berounka', dist: 150 } }, flood: { inside: [], near200: [] },
     transit: { praha: { train: { total: 40 } }, plzen: { bus: { total: 55 } } }, drive: { praha: { min: 25 }, plzen: { min: 28 } },
-    train: { name: 'X', dist: 800 }, bus: { name: 'Y', dist: 200 }, shops: [{ name: 'Lidl', dist: 1500 }] } };
+    train: { name: 'X', dist: 800 }, bus: { name: 'Y', dist: 200 }, shops: [{ name: 'Lidl', dist: 1500 }],
+    signal: { tm: { '4g': 5, '5g': 3 }, o2: { '4g': 2, '5g': 0 }, vf: { '4g': 0, '5g': 0 } } } };
 assert.equal(score(ideal).total, 100);
 const bad = JSON.parse(JSON.stringify(ideal)); bad.geo.flood.inside = ['Q5', 'Q100']; bad.features.ownLand = false;
 { const r = score(bad), lost = 25 + 10 + 10; assert.equal(r.total, Math.round(((r.maxPos - lost) / r.maxPos) * 100)); }
@@ -41,4 +42,6 @@ assert.equal(score(tiny).rows.find((x) => x.key === 'size').pts, 0);
 assert(score(tiny).total < score(ideal).total - 10, 'malá stavba výrazně níž');
 assert.equal(score(ideal, { water: 0, river: 0 }).total, 100); // váhy: bez vody pořád ideál
 assert.equal(score({}).total, 0);
+// bez signálu u všech operátorů → 0 bodů za signál
+{ const ns = JSON.parse(JSON.stringify(ideal)); ns.geo.signal = { tm: { '4g': 0 }, o2: { '4g': 0 }, vf: { '4g': 0 } }; assert.equal(score(ns).rows.find((x) => x.key === 'signal').pts, 0); }
 console.log('OK – všechny kontroly prošly');

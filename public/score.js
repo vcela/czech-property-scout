@@ -7,7 +7,7 @@
     ['water', 'Voda v okolí', 15], ['river', 'Řeka / větší voda', 5], ['flood', 'Záplavy (srážka)', 25, true],
     ['pubPraha', 'Praha vlakem/busem', 15], ['pubPlzen', 'Plzeň vlakem/busem', 10],
     ['carPraha', 'Praha autem', 5], ['carPlzen', 'Plzeň autem', 5],
-    ['train', 'Vlak blízko', 8], ['bus', 'Autobus blízko', 5], ['shop', 'Supermarket', 5],
+    ['signal', 'Signál mobilu (nejlepší operátor, 4G)', 8], ['train', 'Vlak blízko', 8], ['bus', 'Autobus blízko', 5], ['shop', 'Supermarket', 5],
     ['size', 'Velikost stavby (užitná plocha)', 20], ['landSize', 'Velikost pozemku', 10],
     ['land', 'Vlastní pozemek', 10], ['rented', 'Pronajatý / cizí pozemek (srážka)', 10, true],
     ['electricity', 'Elektřina', 5], ['waterHome', 'Voda v domě', 5], ['garage', 'Garáž / parkování', 3],
@@ -24,6 +24,7 @@
   const NO = ['není', 'jen pod stavbou'];
   const isYes = (v) => v === true || (typeof v === 'string' && !NO.includes(v));
   const isNo = (v) => v === false || NO.includes(v);
+  const SIGNAL = ['žádný', 'slabý', 'dostatečný', 'dobrý', 'velmi dobrý', 'výborný'];
   const CAR = [[30, 1], [45, 0.8], [60, 0.6], [90, 0.2]];
 
   function score(l, weights) {
@@ -54,6 +55,8 @@
     add('carPlzen', dZ != null ? mins(dZ) : null, frac(dZ, CAR));
     add('train', g.train ? `${g.train.name} ${dist(g.train.dist)}` : null, g.train ? frac(g.train.dist, [[1000, 1], [2000, 0.6], [4000, 0.25]]) : null);
     add('bus', g.bus ? `${g.bus.name} ${dist(g.bus.dist)}` : null, g.bus ? frac(g.bus.dist, [[300, 1], [700, 0.6], [1500, 0.2]]) : null);
+    const sg = g.signal && Math.max(...Object.values(g.signal).map((o) => o['4g'] || 0));
+    add('signal', g.signal ? (sg ? SIGNAL[sg] : 'bez pokrytí') : null, g.signal ? [0, 0.15, 0.35, 0.65, 0.85, 1][sg] : null);
     const s = g.shops?.[0];
     add('shop', s ? `${s.name} ${dist(s.dist)}` : null, s ? frac(s.dist, [[2000, 1], [5000, 0.6], [10000, 0.2]]) : null);
 
@@ -78,6 +81,7 @@
   }
   score.CRITERIA = CRITERIA;
   score.DEFAULTS = DEFAULTS;
+  score.SIGNAL = SIGNAL;
 
   if (typeof module !== 'undefined') module.exports = score; else root.score = score;
 })(this);
