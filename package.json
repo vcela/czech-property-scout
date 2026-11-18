@@ -1,0 +1,11 @@
+{
+  "name": "czech-property-scout",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Inzeráty nemovitostí na mapě s analýzou vody, vlaku, autobusu, záplav a dojezdu do Prahy",
+  "scripts": {
+    "start": "php -S 127.0.0.1:3001 -t public dev-router.php",
+    "test": "node test.js"
+  },
+  "license": "MIT"
+}

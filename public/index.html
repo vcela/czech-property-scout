@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reality na mapě</title>
+  <link rel="stylesheet" href="vendor/fonts/fonts.css">
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%231e88e5' d='M12 2.7l5.7 5.6a8 8 0 1 1-11.4 0z'/></svg>">
+</head>
+<body>
+  <aside id="sidebar">
+    <header class="brand">
+      <div class="logo"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/><path class="wave" d="M2 21c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0"/></svg></div>
+      <div class="brand-t"><h1>Reality na mapě</h1><p>voda · vlak · autobus · nákupy · Praha a Plzeň</p></div>
+      <div id="auth" class="auth"></div>
+    </header>
+    <form id="loginForm" class="add" hidden>
+      <input id="loginPw" type="password" placeholder="Heslo" autocomplete="current-password">
+      <input id="loginEmail" type="email" placeholder="Váš e-mail – pošleme odkaz pro přihlášení" autocomplete="email">
+      <button type="submit">Přihlásit</button>
+    </form>
+    <button type="button" id="loginSwitch" class="link login-switch" hidden></button>
+
+    <form id="addForm" class="add owner-only">
+      <input id="addUrl" type="url" required placeholder="Vložte odkaz na inzerát (Sreality, Bezrealitky, Realingo…)" autocomplete="off">
+      <button type="submit" id="addBtn">Přidat</button>
+    </form>
+
+    <details id="filters" class="filters">
+      <summary><span>Filtry</span><span id="filterCount" class="badge"></span><button type="button" id="resetFilters" class="link">zrušit</button></summary>
+      <div class="fgrid">
+        <label class="full">Hledat<input id="f_q" type="search" placeholder="obec, text…"></label>
+        <div class="full chips" id="f_type"></div>
+        <label>Cena do (mil. Kč)<input id="f_price" type="number" min="0" step="0.5"></label>
+        <label>Pozemek od (m²)<input id="f_land" type="number" min="0" step="100"></label>
+        <label>Voda do<select id="f_water"><option value="">libovolně</option><option>200</option><option>500</option><option>1000</option><option>2000</option></select></label>
+        <label>Řeka do<select id="f_river"><option value="">libovolně</option><option>300</option><option>1000</option><option>2000</option></select></label>
+        <label>Vlak do<select id="f_train"><option value="">libovolně</option><option value="1000">1 km</option><option value="2000">2 km</option><option value="5000">5 km</option></select></label>
+        <label>Autobus do<select id="f_bus"><option value="">libovolně</option><option>300</option><option>500</option><option>1000</option></select></label>
+        <label>Praha autem do<select id="f_praha"><option value="">libovolně</option><option value="30">30 min</option><option value="45">45 min</option><option value="60">60 min</option><option value="90">90 min</option></select></label>
+        <label>Praha vlakem/busem do<select id="f_pub"><option value="">libovolně</option><option value="45">45 min</option><option value="60">1 h</option><option value="90">1,5 h</option><option value="120">2 h</option></select></label>
+        <label>Supermarket do<select id="f_shop"><option value="">libovolně</option><option value="1000">1 km</option><option value="3000">3 km</option><option value="5000">5 km</option><option value="10000">10 km</option></select></label>
+        <label>Automatické hodnocení od<select id="f_score"><option value="">libovolně</option><option value="40">40+</option><option value="50">50+</option><option value="60">60+</option><option value="70">70+</option></select></label>
+        <label>Hodnocení od<select id="f_rating"><option value="">libovolně</option><option value="1">★</option><option value="2">★★</option><option value="3">★★★</option><option value="4">★★★★</option><option value="5">★★★★★</option></select></label>
+        <div class="full checks">
+          <label><input type="checkbox" id="f_noflood"> mimo záplavové území</label>
+          <label><input type="checkbox" id="f_ownLand"> vlastní pozemek</label>
+          <label><input type="checkbox" id="f_garage"> garáž</label>
+          <label><input type="checkbox" id="f_ownWater"> vlastní voda</label>
+          <label><input type="checkbox" id="f_electricity"> elektřina</label>
+          <label><input type="checkbox" id="f_hideRejected" checked> skrýt zamítnuté</label>
+        </div>
+      </div>
+    </details>
+
+    <div class="listbar">
+      <span id="count"></span>
+      <button type="button" id="weightsBtn" class="link owner-only" title="Nastavit, co je pro automatické hodnocení důležité">⚙ váhy</button>
+      <select id="sort" title="Řazení">
+        <option value="score">Nejlepší automatické hodnocení</option>
+        <option value="rating">Nejoblíbenější (moje hvězdičky)</option>
+        <option value="added">Nejnověji přidané</option>
+        <option value="priceAsc">Cena ↑</option>
+        <option value="priceDesc">Cena ↓</option>
+        <option value="water">Nejblíž k vodě</option>
+        <option value="praha">Nejrychleji do Prahy autem</option>
+        <option value="prahaPub">Nejrychleji do Prahy vlakem/busem</option>
+        <option value="shop">Nejblíž k supermarketu</option>
+        <option value="train">Nejblíž k vlaku</option>
+        <option value="land">Největší pozemek</option>
+      </select>
+    </div>
+    <div id="list" class="list"></div>
+  </aside>
+
+  <main id="mapWrap">
+    <div id="map"></div>
+    <div id="reach" class="reach">
+      <label class="reach-head"><input type="checkbox" id="r_on"> <b>Kde je dobré spojení</b> <span class="sub">vlak / autobus</span></label>
+      <div class="reach-body">
+        <label><span><i class="sw p"></i>Praha centrum do</span><b id="r_pv"></b><input type="range" id="r_p" min="30" max="150" step="5"></label>
+        <label><span><i class="sw z"></i>Plzeň centrum do</span><b id="r_zv"></b><input type="range" id="r_z" min="30" max="150" step="5"></label>
+        <div class="reach-leg"><span><i class="sw p"></i>jen Praha</span><span><i class="sw z"></i>jen Plzeň</span><span><i class="sw b"></i>obojí = sweet spot</span></div>
+        <div class="hint" id="r_info">Ráno ve všední den, příjezd 7–8 h, vč. chůze na zastávku do 1,5 km.</div>
+      </div>
+    </div>
+    <div id="pickHint" class="pick-hint" hidden>Klikněte do mapy na přesné místo nemovitosti <button id="pickCancel">Zrušit</button></div>
+    <div class="legend">
+      <span><i class="lg water"></i>voda</span><span><i class="lg train"></i>vlak</span><span><i class="lg bus"></i>autobus</span><span><i class="lg shp"></i>obchod</span><span><i class="lg flood"></i>záplavy</span>
+    </div>
+    <section id="detail" class="detail" hidden></section>
+  </main>
+
+  <div id="lightbox" class="lightbox" hidden><button class="lb-prev">‹</button><img alt=""><button class="lb-next">›</button><button class="lb-close">×</button></div>
+  <div id="weights" class="modal" hidden></div>
+  <div id="scorePop" class="score-pop" hidden></div>
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script src="geo.js"></script>
+  <script src="scrape.js"></script>
+  <script src="reach.js"></script>
+  <script src="score.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

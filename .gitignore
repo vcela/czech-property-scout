@@ -1,0 +1,13 @@
+# Osobní data – nikdy do gitu
+public/config.php
+public/storage/*
+!public/storage/.htaccess
+public/img/*
+!public/img/.gitkeep
+
+# Lokální / vývoj
+.claude/
+.vscode/
+node_modules/
+.DS_Store
+Thumbs.db
