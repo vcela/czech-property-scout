@@ -10,3 +10,11 @@ Options -Indexes
   Header always unset Content-Security-Policy
   Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'"
 </IfModule>
+
+# Po nahrání nové verze musí prohlížeč hned použít nové skripty (jinak drží staré z cache).
+# no-cache = vždy se zeptat serveru; nezměněný soubor vrátí rychle 304, fotky a knihovny se cachují dál.
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html|js|css)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+</IfModule>
